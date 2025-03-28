@@ -24,6 +24,7 @@
 
 <!-- - **[2024.07.29]** 🔥 Our paper is conditional accpeted by Siggraph Asia 2024! -->
 ## 📣 Updates
+- **[2025.03.21]** 🔥 If you want to generate longer length, please use the forward_long function!
 - **[2024.07.31]** 🔥 Release `OpenXLab`, thanks for [keyhsw](https://github.com/keyhsw) development!
 - **[2024.07.21]** 🔥 Release `Colab`, thanks for [daswer123](https://github.com/daswer123/FollowYourEmoji-colab/blob/main/README.md)!
 - **[2024.07.18]** 🔥 Release `inference code`, `config` and `checkpoints`!
