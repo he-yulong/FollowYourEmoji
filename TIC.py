@@ -6,14 +6,12 @@ import torch
 class TIC(object):
     def set_face_masks(self, face_masks):
         self.face_masks = face_masks
-        # face_masks: torch.Size([97, 512, 512])
-        # print(f"face_masks: {face_masks.shape}")
-        # 对32x32和64x64的mask进行膨胀操作
+        # dilate the 32x32 and 64x64 masks
         kernel = torch.ones(3,3).to(self.pipe.device)
         face_mask_32_temp = face_masks[:,::16,::16]
         face_mask_64_temp = face_masks[:,::8,::8]
         
-        # 膨胀两次
+        # dilate twice
         for _ in range(2):
             face_mask_32_temp = torch.nn.functional.conv2d(
                 face_mask_32_temp.float().unsqueeze(1), 
@@ -85,13 +83,6 @@ class TIC(object):
         current['order'] = 0
         self.cache_dic = cache_dic
         self.current = current
-        self.log={
-            'full computation':0,
-            'Deca Read':0,
-            'Deca Write':0,
-            'Taylor Read':0,
-            'Taylor Write':0,
-        }
     def set_tile_num(self, tile_num):
         self.tile_num = tile_num
     def fit_taylor_cache(self, blocktype, block_name, block_i, layer_i):
@@ -184,19 +175,19 @@ class TIC(object):
             
     def recursive_subtract(self, x, y, div=1):
         """
-        递归地对x和y进行相减操作,保持原有结构
+        recursively subtract x and y, keep the same structure
         Args:
-            x: 可以是tensor、tuple或具有.sample属性的对象
-            y: 与x具有相同结构的对象
-            div: 除数
+            x: can be tensor, tuple or object with .sample attribute
+            y: object with the same structure as x
+            div: divisor
         Returns:
-            z: 与x、y具有相同结构的相减结果
+            z: result with the same structure as x and y
         """
         if isinstance(x, tuple):
-            # 如果是tuple,递归处理每个元素
+            # if tuple, recursively process each element
             return tuple(self.recursive_subtract(xi, yi, div) for xi, yi in zip(x, y))
         elif hasattr(x, 'sample'):
-            # 如果具有sample属性,对sample进行相减
+            # if has sample attribute, subtract sample
             result = type(x)(sample=(x.sample - y.sample)/div)
             return result
         else:
@@ -240,7 +231,7 @@ class TIC(object):
         x = current['step'] - current['activated_steps'][-1]
         output = 0
         def recursive_taylor_term(a,b,m):
-            """递归处理不同类型的数据结构"""
+            """recursive taylor term"""
             if isinstance(a, float):
                 raise NotImplementedError("recursive_multiply is not implemented")
             if isinstance(b, tuple):
@@ -253,18 +244,18 @@ class TIC(object):
                 assert H in [32,64], "H must be 32 or 64"
                 start_frame = self.current['tile_idx'] * 16
                 end_frame = start_frame + 16
-                t = torch.zeros_like(b)  # 先全部设为0
+                t = torch.zeros_like(b)  # set all to 0
                 if self.face_masks is not None:
                     if self.face_masks.ndim == 3:
                         if H == 32:
-                            t[:,:,self.face_mask_32[start_frame:end_frame]] = b[:,:,self.face_mask_32[start_frame:end_frame]] * m  # 只在mask为1的位置乘以m
+                            t[:,:,self.face_mask_32[start_frame:end_frame]] = b[:,:,self.face_mask_32[start_frame:end_frame]] * m  # only multiply m in the mask position
                         else:
-                            t[:,:,self.face_mask_64[start_frame:end_frame]] = b[:,:,self.face_mask_64[start_frame:end_frame]] * m  # 只在mask为1的位置乘以m
+                            t[:,:,self.face_mask_64[start_frame:end_frame]] = b[:,:,self.face_mask_64[start_frame:end_frame]] * m  # only multiply m in the mask position
                     else:
                         if H == 32:
-                            t[:,:,:,self.face_mask_32] = b[:,:,:,self.face_mask_32] * m  # 只在mask为1的位置乘以m
+                            t[:,:,:,self.face_mask_32] = b[:,:,:,self.face_mask_32] * m  # only multiply m in the mask position
                         else:
-                            t[:,:,:,self.face_mask_64] = b[:,:,:,self.face_mask_64] * m  # 只在mask为1的位置乘以m
+                            t[:,:,:,self.face_mask_64] = b[:,:,:,self.face_mask_64] * m  # only multiply m in the mask position
                 else:
                     t = b * m
                 return a+t
