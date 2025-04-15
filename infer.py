@@ -1,3 +1,4 @@
+import math
 import os
 import imageio
 import argparse
@@ -22,7 +23,7 @@ from models.unet import UNet3DConditionModel
 from models.video_pipeline import VideoPipeline
 
 from dataset.val_dataset import ValDataset, val_collate_fn
-
+from TIC import TIC
 
 def load_model_state_dict(model, model_ckpt_path, name):
     ckpt = torch.load(model_ckpt_path, map_location="cpu")
@@ -38,7 +39,7 @@ def load_model_state_dict(model, model_ckpt_path, name):
 
 
 @torch.no_grad()
-def visualize(dataloader, pipeline, generator, W, H, video_length, num_inference_steps, guidance_scale, output_dir, limit=1):
+def visualize(dataloader, pipeline, generator, W, H, video_length, num_inference_steps, guidance_scale, output_dir, limit=1,**kwargs):
 
     for i, batch in enumerate(dataloader):
         ref_frame=batch['ref_frame'][0]
@@ -52,6 +53,11 @@ def visualize(dataloader, pipeline, generator, W, H, video_length, num_inference
         else:
             lmk_name = 'lmk'
         print(file_name, lmk_name)
+        # set face masks for TIC
+        face_masks = torch.from_numpy(batch['face_masks'][0]).to(device=pipeline.device)
+        if kwargs.get('hybrid_taylorcache', False):
+            if kwargs['hybrid_taylorcache'].mask_style== 'face':
+                kwargs['hybrid_taylorcache'].set_face_masks(face_masks)
         # tensor to pil image
         ref_frame = torch.clamp((ref_frame + 1.0) / 2.0, min=0, max=1)
         ref_frame = ref_frame.permute((1, 2, 3, 0)).squeeze()
@@ -172,7 +178,23 @@ def main(args, config):
                              unet=unet,
                              lmk_guider=lmk_guider,
                              scheduler=noise_scheduler).to(vae.device, dtype=weight_dtype)
-
+    # Efficient Inference via Taylor-Interpolated Cache
+    unet_hybrid_taylorcache=None
+    if args.TIC:
+        print(f"Taylor-Interpolated Cache is applied")
+        unet_hybrid_taylorcache = TIC(
+            pipe=pipeline, 
+            num_steps=args.num_inference_steps,
+            cache_branch_id=args.cache_branch_id,
+            cache_interval=args.cache_interval,
+            cache_max_order=args.max_order,
+            threshold=args.threshold,
+            first_enhance=args.first_enhance,
+            mask_style=args.mask_style,
+            cache_write_debug=args.cache_write_debug
+        )
+        unet_hybrid_taylorcache.set_tile_num(math.ceil((config.video_length-8)/8))
+        unet_hybrid_taylorcache.wrap_modules()
     # dataset creation
     print('init dataset')
     val_dataset = ValDataset(
@@ -204,7 +226,7 @@ def main(args, config):
                 W=config.resolution_w, 
                 H=config.resolution_h, 
                 video_length=config.video_length,
-                num_inference_steps=30, 
+                num_inference_steps=args.num_inference_steps, 
                 guidance_scale=3.5,
                 output_dir=args.output_path,
                 limit=100000000)
@@ -217,6 +239,16 @@ if __name__ == '__main__':
     parser.add_argument('--input_path', type=str, required=True)
     parser.add_argument('--lmk_path', type=str, required=True)
     parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--num_inference_steps', type=int, default=30)
+    
+    # Taylor-Interpolated Cache
+    parser.add_argument('--TIC', action='store_true')
+    parser.add_argument('--cache_branch_id', type=int, default=0)
+    parser.add_argument('--cache_interval', type=int, default=3)
+    parser.add_argument('--max_order', type=int, default=2)
+    parser.add_argument('--threshold', type=int, default=25)
+    parser.add_argument('--first_enhance', type=int, default=2)
+    parser.add_argument('--mask_style', type=str, default=None)
     args = parser.parse_args()
 
     config = OmegaConf.load(args.config)
