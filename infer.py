@@ -191,7 +191,6 @@ def main(args, config):
             threshold=args.threshold,
             first_enhance=args.first_enhance,
             mask_style=args.mask_style,
-            cache_write_debug=args.cache_write_debug
         )
         unet_hybrid_taylorcache.set_tile_num(math.ceil((config.video_length-8)/8))
         unet_hybrid_taylorcache.wrap_modules()
