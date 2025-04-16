@@ -7,12 +7,39 @@ from torch.utils.data import Dataset
 import torchvision.transforms as T
 
 from transformers import CLIPImageProcessor
-
+import cv2
 import sys
 sys.path.append("/path/to/FollowYourEmoji")
 from media_pipe import FaceMeshDetector, FaceMeshAlign
 from media_pipe.draw_util import FaceMeshVisualizer
 
+def get_face_masks(temp_lmks,H=512,W=512):
+    face_masks = []
+    for lmk in temp_lmks:
+        mask = np.zeros((H, W), dtype=np.uint8)
+
+        # 从关键点创建面部掩码
+        # 面部轮廓关键点索引 (MediaPipe FaceMesh中的FACE_OVAL)
+        face_oval_indices = [
+            10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
+            397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
+            172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109
+        ]
+
+        # 获取面部轮廓点
+        face_oval_points = np.array([lmk['lmks'][i][:2] * [W, H] for i in face_oval_indices], 
+                                dtype=np.int32)
+
+        # 填充轮廓以创建掩码
+        cv2.fillPoly(mask, [face_oval_points], 255)
+
+        # 可选：平滑掩码边缘
+        mask = cv2.GaussianBlur(mask, (1, 1), 0)
+        # 将掩码转换为bool张量
+        mask = mask > 127
+        face_masks.append(mask)
+    face_masks = np.array(face_masks)
+    return face_masks
 
 def val_collate_fn(samples):
     return {
@@ -21,6 +48,7 @@ def val_collate_fn(samples):
         'motions': [sample['motions'] for sample in samples],
         'file_name': [sample['file_name'] for sample in samples],
         'lmk_name': [sample['lmk_name'] for sample in samples],
+        'face_masks': [sample['face_masks'] for sample in samples],
     }
 
 
@@ -101,6 +129,7 @@ class ValDataset(Dataset):
 
         # motion sequence
         temp_lmks = np.load(lmk_path, allow_pickle=True)
+        face_masks = get_face_masks(temp_lmks,H,W)
         # landmark align and draw motions
         if ref_lmk is not None:
             motions = self.get_align_motion(ref_lmk, temp_lmks)
@@ -119,5 +148,5 @@ class ValDataset(Dataset):
         example["ref_frame"] = ref_image # value in [-1, 1]
         example["ref_lmk_image"] = ref_lmk_image
         example["clip_image"] = clip_image
-
+        example["face_masks"] = face_masks
         return example
