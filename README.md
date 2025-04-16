@@ -115,7 +115,7 @@ CUDA_VISIBLE_DEVICES=0 python3 -m torch.distributed.run \
     --output_path your_own_output_path
 ```
 
-### 3. Efficient Inference with TIC🚀
+### 4. Efficient Inference with TIC🚀
 <img src="images/faster.png" alt="Image 2">
 
 <p>We present <span style="color: #c20557ee">Taylor-Interpolated Cache</span>, a cache based accelerating method that can accelerate original pipeline losslessly. It is compatible with existing pipeline and very easy to use! We have deployed TIC on 4090(24G), 32 frames per case and 512 × 512 resolution.</p>
