@@ -24,6 +24,7 @@
 
 <!-- - **[2024.07.29]** 🔥 Our paper is conditional accpeted by Siggraph Asia 2024! -->
 ## 📣 Updates
+- **[2025.04.16]** 🔥 We propose Taylor-Interpolated Cache (TIC) for faster generation up to 2.4× lossless acceleration, codes are released!
 - **[2025.03.21]** 🔥 If you want to generate longer length, please use the forward_long function!
 - **[2024.07.31]** 🔥 Release `OpenXLab`, thanks for [keyhsw](https://github.com/keyhsw) development!
 - **[2024.07.21]** 🔥 Release `Colab`, thanks for [daswer123](https://github.com/daswer123/FollowYourEmoji-colab/blob/main/README.md)!
@@ -114,6 +115,32 @@ CUDA_VISIBLE_DEVICES=0 python3 -m torch.distributed.run \
     --output_path your_own_output_path
 ```
 
+### 4. Efficient Inference with TIC🚀
+<img src="images/faster.png" alt="Image 2">
+
+<p>We present <span style="color: #c20557ee">Taylor-Interpolated Cache</span>, a cache based accelerating method that can accelerate original pipeline losslessly. It is compatible with existing pipeline and very easy to use! We have deployed TIC on 4090(24G), 32 frames per case and 512 × 512 resolution.</p>
+
+```bash
+bash infer.sh
+```
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 -m torch.distributed.run \
+    --nnodes 1 \
+    --master_addr $LOCAL_IP \
+    --master_port 12345 \
+    --node_rank 0 \
+    --nproc_per_node 1 \
+    infer.py \
+    --config ./configs/infer.yaml \
+    --model_path /path/to/model \
+    --input_path your_own_images_path \
+    --lmk_path ./inference_temple/test_temple.npy  \
+    --output_path your_own_output_path \
+    --TIC
+```
+
+TIC is developed based on codebase from [DeepCache](https://github.com/horseee/DeepCache) and [Taylor Seer](https://github.com/Shenyi-Z/TaylorSeer). Thanks to their exellent work!
 ## 🤪 Make Your Emoji
 You can make your own emoji using our model. First, you need to make your emoji temple using MediaPipe. We provide the script in ```make_temple.ipynb```. You can replace the video path with your own emoji video and generate the ```.npy``` file.
 

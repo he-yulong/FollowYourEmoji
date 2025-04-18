@@ -83,10 +83,13 @@ class TIC(object):
         current['order'] = 0
         self.cache_dic = cache_dic
         self.current = current
+        
     def set_tile_num(self, tile_num):
         self.tile_num = tile_num
+        
     def fit_taylor_cache(self, blocktype, block_name, block_i, layer_i):
         return (blocktype, block_name, block_i, layer_i) in self.taylor_tags
+    
     def wrap_unet_forward(self):
         self.function_dict['unet_forward'] = self.pipe.unet.forward
         def wrapped_forward(*args, **kwargs):
